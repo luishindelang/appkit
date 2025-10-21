@@ -13,10 +13,10 @@ class CNumberPicker extends StatefulWidget {
   final double step;
 
   /// Min value can be picked
-  final int min;
+  final double min;
 
   /// Max value can be picked
-  final int max;
+  final double max;
 
   /// width of one item in pixels
   final double itemWidth;
@@ -24,7 +24,7 @@ class CNumberPicker extends StatefulWidget {
   /// height of one item in pixels
   final double itemHeight;
 
-  /// how many items on each side should be shown
+  /// how many items are visible in total
   final int itemCount;
 
   /// Direction of scrolling
