@@ -23,7 +23,7 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  double number = 3;
+  double number = 1;
   int number2 = 2;
   @override
   Widget build(BuildContext context) {
@@ -38,13 +38,14 @@ class _HomeState extends State<Home> {
               onChanged: (newValue) => setState(() {
                 number = newValue;
               }),
-              step: 0.25,
               min: 0,
-              max: 4,
-              itemCount: 4,
-              showDezimal: 2,
+              max: 10,
+              itemCount: 1,
+              step: 1,
+              showDezimal: 0,
+              zeroPad: true,
               axis: Axis.horizontal,
-              infiniteLoop: true,
+              infiniteLoop: false,
             ),
           ],
         ),

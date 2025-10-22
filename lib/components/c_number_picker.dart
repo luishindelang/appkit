@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:infinite_listview/infinite_listview.dart';
 
+typedef TextMapper = String Function(String numberText);
+
 class CNumberPicker extends StatefulWidget {
   /// Currently selected value
   final double value;
@@ -51,6 +53,8 @@ class CNumberPicker extends StatefulWidget {
   /// Whether to trigger haptic pulses or not
   final bool haptics;
 
+  final TextMapper? textMapper;
+
   const CNumberPicker({
     super.key,
     required this.value,
@@ -69,6 +73,7 @@ class CNumberPicker extends StatefulWidget {
     this.zeroPad = false,
     this.decoration,
     this.haptics = false,
+    this.textMapper,
   }) : assert(min <= value),
        assert(max >= value);
 
@@ -223,8 +228,11 @@ class _CNumberPickerState extends State<CNumberPicker> {
   String _getDisplayedValue(double value) {
     String text = value.toStringAsFixed(widget.showDezimal);
     if (widget.zeroPad) {
-      text = text.padLeft(widget.max.toString().length, '0');
+      String maxNumber = widget.max.toString().split(".").first;
+      text = text.padLeft(maxNumber.length, '0');
     }
+    if (widget.textMapper != null) return widget.textMapper!(text);
+
     return text;
   }
 

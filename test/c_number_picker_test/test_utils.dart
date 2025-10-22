@@ -23,7 +23,9 @@ Future<CNumberPicker> testNumberPicker({
   double itemHeight = 50,
   int itemCount = 3,
   int showDezimal = 0,
-  required List<double> expectedDisplayValues,
+  bool withDeco = false,
+  String Function(String)? textMapper,
+  required List<String> expectedDisplayValues,
 }) async {
   double value = initialValue;
   late CNumberPicker picker;
@@ -43,6 +45,8 @@ Future<CNumberPicker> testNumberPicker({
           itemCount: itemCount,
           infiniteLoop: animateToItself,
           showDezimal: showDezimal,
+          decoration: withDeco ? decoration : null,
+          textMapper: textMapper,
           onChanged: (newValue) => setState(() => value = newValue),
         );
         return MaterialApp(home: Scaffold(body: picker));
@@ -50,41 +54,21 @@ Future<CNumberPicker> testNumberPicker({
     ),
   );
   expect(value, equals(initialValue));
-  await tester.pumpAndSettle();
-  final pickerFinder = find.byType(CNumberPicker);
 
-  final scrollable = find.descendant(
-    of: pickerFinder,
-    matching: find.byWidgetPredicate(
-      (w) => w is ListView || w.runtimeType.toString() == 'InfiniteListView',
-    ),
+  await scrollNumberPicker(
+    Offset(0.0, 0.0),
+    tester,
+    scrollBy,
+    axis,
+    itemWidth,
+    itemHeight,
+    itemCount,
   );
 
-  expect(scrollable, findsOneWidget);
-
-  final delta = axis == Axis.vertical
-      ? Offset(0, -scrollBy * itemHeight)
-      : Offset(-scrollBy * itemWidth, 0);
-  await tester.drag(scrollable, delta);
-
-  // await scrollNumberPicker(
-  //   Offset(0.0, 0.0),
-  //   tester,
-  //   scrollBy,
-  //   axis,
-  //   itemWidth,
-  //   itemHeight,
-  //   itemCount,
-  // );
-
-  expect(value, equals(7));
   await tester.pumpAndSettle();
 
-  for (double displayValue in expectedDisplayValues) {
-    expect(
-      find.text(displayValue.toStringAsFixed(showDezimal)),
-      findsOneWidget,
-    );
+  for (String displayValue in expectedDisplayValues) {
+    expect(find.text(displayValue), findsOneWidget);
   }
 
   return picker;
@@ -121,7 +105,4 @@ Future<void> scrollNumberPicker(
   );
   final TestGesture testGesture = await tester.startGesture(pickerCenter);
   await testGesture.moveBy(Offset(offsetX, offsetY));
-  await testGesture.up();
-  await tester.pump(const Duration(milliseconds: 200));
-  await tester.pumpAndSettle();
 }
