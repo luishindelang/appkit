@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:infinite_listview/infinite_listview.dart';
+import 'dart:math' as math;
 
 typedef TextMapper = String Function(String numberText);
 
@@ -89,17 +90,29 @@ class _CNumberPickerState extends State<CNumberPicker> {
   double get itemExtent =>
       widget.axis == Axis.vertical ? widget.itemHeight : widget.itemWidth;
 
-  int get itemCount {
-    final span = (widget.max - widget.min).toDouble();
-    final steps = (span / widget.step).floor();
-    return steps + 1;
-  }
-
   int get additionalOnEnd => widget.itemCount.isEven ? 1 : 0;
 
   int get additionalItemOnBegin => (widget.itemCount - 1) ~/ 2;
   int get additionalItemOnEnd =>
       ((widget.itemCount - 1) ~/ 2) + additionalOnEnd;
+
+  int _pow10(int n) =>
+      (n <= 0) ? 1 : List.filled(n, 0).fold(1, (p, _) => p * 10);
+  int get _scale => _pow10(widget.showDezimal);
+
+  int _toTicks(double v) => (v * _scale).round();
+  double _fromTicks(int t) => t / _scale;
+
+  int get _minT => _toTicks(widget.min);
+  int get _maxT => _toTicks(widget.max);
+  int get _stepT => math.max(1, _toTicks(widget.step));
+  int get _valueT => _toTicks(widget.value);
+
+  int get itemCount {
+    final spanT = _maxT - _minT;
+    final steps = (spanT / _stepT).floor();
+    return steps + 1;
+  }
 
   int get listItemsCount =>
       itemCount + additionalItemOnBegin + additionalItemOnEnd;
@@ -107,8 +120,8 @@ class _CNumberPickerState extends State<CNumberPicker> {
   @override
   void initState() {
     super.initState();
-    final initialOffset =
-        (widget.value - widget.min) ~/ widget.step * itemExtent;
+    final idx = ((_valueT - _minT) / _stepT).round();
+    final initialOffset = idx * itemExtent;
     _scrollController = widget.infiniteLoop
         ? InfiniteScrollController(initialScrollOffset: initialOffset)
         : ScrollController(initialScrollOffset: initialOffset);
@@ -195,6 +208,8 @@ class _CNumberPickerState extends State<CNumberPicker> {
     );
   }
 
+  bool _isSelected(double v) => _toTicks(v) == _valueT;
+
   Widget _itemBuilder(BuildContext context, int index) {
     final themeData = Theme.of(context);
     final defaultStyle = widget.textStyle ?? themeData.textTheme.bodyMedium;
@@ -211,7 +226,7 @@ class _CNumberPickerState extends State<CNumberPicker> {
         (index < additionalItemOnBegin ||
             index >= listItemsCount - additionalItemOnEnd);
 
-    final itemStyle = value == widget.value ? selectedStyle : defaultStyle;
+    final itemStyle = _isSelected(value) ? selectedStyle : defaultStyle;
 
     final child = isExtra
         ? SizedBox.shrink()
@@ -229,7 +244,11 @@ class _CNumberPickerState extends State<CNumberPicker> {
     String text = value.toStringAsFixed(widget.showDezimal);
     if (widget.zeroPad) {
       String maxNumber = widget.max.toString().split(".").first;
-      text = text.padLeft(maxNumber.length, '0');
+      if (widget.showDezimal != 0) {
+        text = text.padLeft(maxNumber.length + widget.showDezimal + 1, '0');
+      } else {
+        text = text.padLeft(maxNumber.length, '0');
+      }
     }
     if (widget.textMapper != null) return widget.textMapper!(text);
 
@@ -239,13 +258,14 @@ class _CNumberPickerState extends State<CNumberPicker> {
   double _intValueFromIndex(int index) {
     index -= additionalItemOnBegin;
     index %= itemCount;
-    return widget.min + index * widget.step;
+    final t = _minT + index * _stepT;
+    return _fromTicks(t);
   }
 
   void _maybeCenterValue() {
     if (!_scrollController.hasClients || isScrolling) return;
 
-    final rawIndex = ((widget.value - widget.min) / widget.step);
+    final rawIndex = ((_valueT - _minT) / _stepT);
     final index = rawIndex.clamp(0, (itemCount - 1).toDouble());
     final target = index * itemExtent;
 

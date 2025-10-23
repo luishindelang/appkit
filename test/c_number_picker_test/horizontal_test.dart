@@ -1,8 +1,9 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'test_utils.dart';
 
 void main() {
-  group("Integer Tests", () {
+  group("horizontal Tests", () {
     testWidgets('Integer small scroll up works', (WidgetTester tester) async {
       await testNumberPicker(
         tester: tester,
@@ -12,6 +13,7 @@ void main() {
         scrollBy: 2,
         itemCount: 1,
         expectedDisplayValues: ["7"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -24,6 +26,7 @@ void main() {
         scrollBy: -2,
         itemCount: 1,
         expectedDisplayValues: ["3"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -38,6 +41,7 @@ void main() {
         scrollBy: 10,
         itemCount: 1,
         expectedDisplayValues: ["5"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -52,6 +56,7 @@ void main() {
         scrollBy: -10,
         itemCount: 1,
         expectedDisplayValues: ["0"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -65,6 +70,7 @@ void main() {
         itemCount: 1,
         step: 2,
         expectedDisplayValues: ["10"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -78,6 +84,7 @@ void main() {
         itemCount: 1,
         step: 3,
         expectedDisplayValues: ["6"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -91,6 +98,7 @@ void main() {
         itemCount: 1,
         zeroPad: true,
         expectedDisplayValues: ["06"],
+        axis: Axis.horizontal,
       );
     });
 
@@ -104,6 +112,7 @@ void main() {
         itemCount: 1,
         expectedDisplayValues: ["4"],
         withDeco: true,
+        axis: Axis.horizontal,
       );
     });
 
@@ -117,6 +126,7 @@ void main() {
         itemCount: 1,
         textMapper: (value) => "$value hour",
         expectedDisplayValues: ["3 hour"],
+        axis: Axis.horizontal,
       );
     });
   });

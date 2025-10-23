@@ -23,8 +23,7 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  double number = 1;
-  int number2 = 2;
+  double number = 0.4;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,12 +38,12 @@ class _HomeState extends State<Home> {
                 number = newValue;
               }),
               min: 0,
-              max: 10,
+              max: 0.8,
+              step: 0.1,
               itemCount: 1,
-              step: 1,
-              showDezimal: 0,
-              zeroPad: true,
-              axis: Axis.horizontal,
+              showDezimal: 1,
+              zeroPad: false,
+              axis: Axis.vertical,
               infiniteLoop: false,
             ),
           ],
