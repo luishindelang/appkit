@@ -1,2 +1,2 @@
-export 'Components/NumberPicker/c_number_picker.dart';
-export 'Components/DropDown/c_drop_down.dart';
+export 'Components/c_number_picker.dart';
+export 'Components/c_drop_down.dart';

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class CDropDown<T> extends StatefulWidget {
   /// List with all selectable options
@@ -19,24 +18,43 @@ class CDropDown<T> extends StatefulWidget {
 
   /// Decoration to apply to central box where the selected item is placed
   final Decoration? decoration;
+  final EdgeInsets? padding;
 
   /// Decoration to apply to the dropDown box where the options are placed
   final Decoration? dropDownDecoration;
+  final EdgeInsets? dropDownItemPadding;
 
-  final TextStyle textStyle;
-  final Color selectedIconColor;
-  final double dropdownIconSize;
-  final double paddingHor;
-  final double paddingVert;
+  /// Style of the shown text
+  final TextStyle? textStyle;
+  final TextStyle? textStyleDropdown;
+
+  /// Offset of the dropdown menu
   final double dropdownOffset;
 
+  /// Icon configuration for the dropdown button
   final IconData? iconOpen;
   final IconData? iconClosed;
+  final Color iconColor;
+  final double iconSize;
 
-  final bool enabled;
-  final double? maxDropdownHeight;
+  /// Show icon next to the selected item
+  final Icon? selectedIcon;
 
+  /// Background color of the selected item
+  final Color? selectedBackgroundColor;
+
+  /// Trigger size
+  final double? maxWidth;
+  final double? minWidth;
+
+  /// Max height of the dropdown panel (content area)
+  final double maxDropdownHeight;
+
+  /// Wenn true, wird der Trigger auf die breiteste Option (inkl. Icon/Padding) fest gesetzt
   final bool sizeToWidestItem;
+
+  /// Can press dropdown button
+  final bool enabled;
 
   const CDropDown({
     super.key,
@@ -46,18 +64,23 @@ class CDropDown<T> extends StatefulWidget {
     this.selectedItem,
     this.selectedItemPlaceholder,
     this.decoration,
+    this.padding,
     this.dropDownDecoration,
-    this.textStyle = const TextStyle(),
-    this.selectedIconColor = Colors.black,
-    this.dropdownIconSize = 10,
-    this.paddingHor = 6,
-    this.paddingVert = 2,
+    this.dropDownItemPadding,
+    this.textStyle,
+    this.textStyleDropdown,
     this.dropdownOffset = 8,
     this.iconClosed = Icons.keyboard_arrow_down,
     this.iconOpen,
-    this.enabled = true,
-    this.maxDropdownHeight,
+    this.iconColor = Colors.black,
+    this.iconSize = 10,
+    this.selectedIcon,
+    this.selectedBackgroundColor,
+    this.maxWidth,
+    this.minWidth,
+    this.maxDropdownHeight = 300,
     this.sizeToWidestItem = true,
+    this.enabled = true,
   }) : assert((selectedItem == null) != (selectedItemPlaceholder == null));
 
   @override
@@ -68,6 +91,8 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   bool _isDropdownOpen = false;
+
+  TextStyle? _dropDownTextStyle;
 
   double? _fixedWidth;
 
@@ -81,13 +106,16 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
   @override
   void initState() {
     _current = widget.selectedItem;
+    _dropDownTextStyle = widget.textStyleDropdown ?? widget.textStyle;
     super.initState();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _recomputeFixedWidth();
+    if (_isDropdownOpen) {
+      _overlayEntry?.markNeedsBuild();
+    }
   }
 
   @override
@@ -105,15 +133,6 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
       _current = null;
       _overlayEntry?.markNeedsBuild();
     }
-    if (oldWidget.options != widget.options ||
-        oldWidget.textStyle != widget.textStyle ||
-        oldWidget.selectedItemPlaceholder != widget.selectedItemPlaceholder ||
-        oldWidget.paddingHor != widget.paddingHor ||
-        oldWidget.dropdownIconSize != widget.dropdownIconSize ||
-        oldWidget.iconClosed != widget.iconClosed ||
-        oldWidget.iconOpen != widget.iconOpen) {
-      _recomputeFixedWidth();
-    }
   }
 
   @override
@@ -123,40 +142,10 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
     super.dispose();
   }
 
-  void _recomputeFixedWidth() {
-    if (!widget.sizeToWidestItem || !mounted) return;
-
-    final textDirection = Directionality.of(context);
-    final candidates = <String>[
-      if (widget.selectedItemPlaceholder != null)
-        widget.selectedItemPlaceholder!,
-      ...widget.options.map(widget.textMapper),
-    ];
-
-    double maxText = 0;
-    for (final s in candidates) {
-      final tp = TextPainter(
-        text: TextSpan(text: s, style: widget.textStyle),
-        maxLines: 1,
-        ellipsis: '…',
-        textDirection: textDirection,
-      )..layout();
-      if (tp.width > maxText) maxText = tp.width;
-    }
-
-    final iconSpace = (widget.iconClosed != null)
-        ? (8 + widget.dropdownIconSize)
-        : 0;
-    final padding = widget.paddingHor * 2;
-    final minTapWidth = 48.0;
-
-    final screenWidth = MediaQuery.of(context).size.width;
-    final target = (maxText + iconSpace + padding).clamp(
-      minTapWidth,
-      screenWidth * 0.95,
-    );
-
-    setState(() => _fixedWidth = target);
+  @override
+  void deactivate() {
+    if (_isDropdownOpen) _closeDropdown();
+    super.deactivate();
   }
 
   void _toggleDropdown() =>
@@ -176,7 +165,7 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
   }
 
   OverlayEntry _createOverlayEntry() {
-    RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
     final targetTopLeft = renderBox.localToGlobal(Offset.zero);
     final mq = MediaQuery.of(context);
@@ -187,10 +176,13 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
         screen.height - keyboard - (targetTopLeft.dy + size.height);
     final spaceAbove = targetTopLeft.dy;
 
-    final wantsBelow = spaceBelow >= 200 || spaceBelow >= spaceAbove;
-    final maxHeight = widget.maxDropdownHeight ?? 300;
+    final wantsBelow =
+        spaceBelow >= widget.maxDropdownHeight || spaceBelow >= spaceAbove;
+    final maxHeight = widget.maxDropdownHeight;
     final available = wantsBelow ? spaceBelow : spaceAbove;
-    final actualHeight = available.clamp(120, maxHeight).toDouble();
+    final actualHeight = available.clamp(0.0, maxHeight).toDouble();
+
+    final triggerWidth = size.width;
 
     BorderRadiusGeometry? radius;
     final box = widget.dropDownDecoration;
@@ -200,11 +192,9 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
       builder: (context) => Positioned.fill(
         child: Stack(
           children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _closeDropdown,
-                behavior: HitTestBehavior.opaque,
-              ),
+            GestureDetector(
+              onTap: _closeDropdown,
+              behavior: HitTestBehavior.opaque,
             ),
             CompositedTransformFollower(
               link: _layerLink,
@@ -218,17 +208,11 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
               child: Material(
                 elevation: 14.0,
                 borderRadius: radius,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: (widget.sizeToWidestItem && _fixedWidth != null)
-                        ? _fixedWidth!
-                        : size.width,
-                    maxHeight: actualHeight,
-                  ),
-                  child: Container(
-                    decoration: widget.dropDownDecoration,
-                    child: _buildOptionsList(),
-                  ),
+                child: Container(
+                  width: triggerWidth,
+                  constraints: BoxConstraints(maxHeight: actualHeight),
+                  decoration: widget.dropDownDecoration,
+                  child: _buildOptionsList(),
                 ),
               ),
             ),
@@ -253,22 +237,21 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
               widget.onChangedItem?.call(option);
               _closeDropdown();
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Container(
+              color: selected ? widget.selectedBackgroundColor : null,
+              padding: widget.dropDownItemPadding,
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       widget.textMapper(option),
-                      style: widget.textStyle,
+                      style: _dropDownTextStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (selected)
-                    Icon(
-                      Icons.check,
-                      size: 16,
-                      color: widget.selectedIconColor,
-                    ),
+                  if (selected && widget.selectedIcon != null)
+                    widget.selectedIcon!,
                 ],
               ),
             ),
@@ -280,69 +263,53 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final content = Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Flexible(
-          child: Text(
-            _displayText,
-            style: widget.textStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        if (widget.iconClosed != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: Icon(
-              _isDropdownOpen
-                  ? (widget.iconOpen ?? widget.iconClosed)
-                  : widget.iconClosed,
-              color: widget.selectedIconColor,
-              size: widget.dropdownIconSize,
-            ),
-          ),
-      ],
-    );
-
-    final trigger = Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.paddingHor,
-        vertical: widget.paddingVert,
+    final trigger = ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: widget.minWidth ?? 0,
+        maxWidth: widget.maxWidth ?? double.infinity,
       ),
-      decoration: widget.decoration,
-      child: content,
+      child: Container(
+        padding: widget.padding,
+        decoration: widget.decoration,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                _displayText,
+                style: widget.textStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (widget.iconClosed != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(
+                  _isDropdownOpen
+                      ? (widget.iconOpen ?? widget.iconClosed)
+                      : widget.iconClosed,
+                  color: widget.iconColor,
+                  size: widget.iconSize,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
 
     return CompositedTransformTarget(
       link: _layerLink,
-      child: Semantics(
-        button: true,
-        label: 'Dropdown',
-        value: _displayText.isEmpty ? 'Keine Auswahl' : _displayText,
-        enabled: widget.enabled,
-        child: Focus(
-          canRequestFocus: widget.enabled,
-          onKeyEvent: (node, event) {
-            if (event.logicalKey == LogicalKeyboardKey.escape &&
-                _isDropdownOpen) {
-              _closeDropdown();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: MouseRegion(
-            cursor: widget.enabled
-                ? SystemMouseCursors.click
-                : SystemMouseCursors.basic,
-            child: GestureDetector(
-              onTap: widget.enabled ? _toggleDropdown : null,
-              child: widget.sizeToWidestItem && _fixedWidth != null
-                  ? SizedBox(width: _fixedWidth, child: trigger)
-                  : trigger,
-            ),
-          ),
+      child: MouseRegion(
+        cursor: widget.enabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        child: GestureDetector(
+          onTap: widget.enabled ? _toggleDropdown : null,
+          child: widget.sizeToWidestItem && _fixedWidth != null
+              ? SizedBox(width: _fixedWidth, child: trigger)
+              : trigger,
         ),
       ),
     );
