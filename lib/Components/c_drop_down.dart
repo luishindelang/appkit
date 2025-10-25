@@ -94,8 +94,6 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
 
   TextStyle? _dropDownTextStyle;
 
-  double? _fixedWidth;
-
   T? _current;
   String get _displayText {
     final v = _current ?? widget.selectedItem;
@@ -307,9 +305,7 @@ class _CDropDownState<T> extends State<CDropDown<T>> {
             : SystemMouseCursors.basic,
         child: GestureDetector(
           onTap: widget.enabled ? _toggleDropdown : null,
-          child: widget.sizeToWidestItem && _fixedWidth != null
-              ? SizedBox(width: _fixedWidth, child: trigger)
-              : trigger,
+          child: trigger,
         ),
       ),
     );
